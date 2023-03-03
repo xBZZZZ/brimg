@@ -1,0 +1,48 @@
+#!/bin/sh
+LC_ALL=C
+export LC_ALL
+magic='414e44524f494421' #ANDROID!
+i='(..)(..)(..)(..)'
+error_exit() {
+echo "$@" error >&2
+exit 1
+}
+assert_stdin_is_file() {
+[ -f '/dev/stdin' ] || error_exit stdin is not file
+}
+case "$1" in
+'b2r')assert_stdin_is_file
+sedcmd='s/^'"$magic$i"'.{8}'"$i"'.{32}(.{8})$/l\9kernelsize=0x\4\3\2\1;ramdisksize=0x\8\7\6\5/;s/^l'"$i"'/pagesize=0x\4\3\2\1;/;s/^([^p]|$)/error_exit bad header #/'
+#xxd -l40 won't work because xxd (unlike dd) will read too many bytes but display only 40
+eval "`dd 'bs=40' 'count=1' | xxd -p -c40 | sed -E "$sedcmd"`" &&
+[ -n "$pagesize" -a -n "$kernelsize" -a -n "$ramdisksize" ] || error_exit read header
+exec dd "skip=$((pagesize-40+kernelsize+(pagesize-kernelsize%pagesize)%pagesize))" "count=$((ramdisksize))" 'iflag=count_bytes,skip_bytes'
+error_exit exec dd
+;;
+'r2b')assert_stdin_is_file
+ramdisksize="`du -bL '/dev/stdin' | cut -f1`"
+[ -n "$ramdisksize" ] || error_exit get ramdisk size
+[ 4294967295 -le "$ramdisksize" ] && error_exit ramdisk too big
+sedcmd='s/^'"$i"'$/'"$magic"'0000000000000000\4\3\2\1000000000000000000000000000000000008/'
+printf '%08x' "$ramdisksize" | sed -E "$sedcmd" | xxd -p -r || error_exit xxd command
+head -c2010 '/dev/zero' || error_exit head command
+m="$((ramdisksize%2048))"
+if [ 0 = "$m" ]
+then exec cat
+error_exit exec cat
+fi
+cat || error_exit cat command
+exec head "-c$((2048-m))" '/dev/zero'
+error_exit exec head
+;;
+esac
+exec >&2
+echo 'minimal boot.img generator from ramdisk.img for magisk'
+echo 'usage: '"$0"' MODE'
+echo 'stdin must be a file'
+echo 'MODEs:'
+echo '  "b2r"  extract ramdisk.img (stdout) from boot.img (stdin)'
+echo '  "r2b"  make boot.img (stdout) from ramdisk.img (stdin)'
+echo '         exit code 0 does not gurantee succcess'
+echo '         does not work correctly if stdin read offset > 0'
+exit 1
