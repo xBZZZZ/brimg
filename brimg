@@ -14,9 +14,9 @@ case "$1" in
 'b2r')assert_stdin_is_file
 sedcmd='s/^'"$magic$i"'.{8}'"$i"'.{32}(.{8})$/l\9kernelsize=0x\4\3\2\1;ramdisksize=0x\8\7\6\5/;s/^l'"$i"'/pagesize=0x\4\3\2\1;/;s/^([^p]|$)/error_exit bad header #/'
 #xxd -l40 won't work because xxd (unlike dd) will read too many bytes but display only 40
-eval "`dd 'bs=40' 'count=1' | xxd -p -c40 | sed -E "$sedcmd"`" &&
+eval "`dd 'bs=40' 'count=1' 'iflag=fullblock' | xxd -p -c40 | sed -E "$sedcmd"`" &&
 [ -n "$pagesize" -a -n "$kernelsize" -a -n "$ramdisksize" ] || error_exit read header
-exec dd "skip=$((pagesize-40+kernelsize+(pagesize-kernelsize%pagesize)%pagesize))" "count=$((ramdisksize))" 'iflag=count_bytes,skip_bytes'
+exec dd "skip=$((pagesize-40+kernelsize+(pagesize-kernelsize%pagesize)%pagesize))" "count=$((ramdisksize))" 'iflag=count_bytes,skip_bytes,fullblock'
 error_exit exec dd
 ;;
 'r2b')assert_stdin_is_file
