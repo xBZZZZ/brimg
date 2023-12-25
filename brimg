@@ -43,6 +43,6 @@ echo 'stdin must be a file'
 echo 'MODEs:'
 echo '  "b2r"  extract ramdisk.img (stdout) from boot.img (stdin)'
 echo '  "r2b"  make boot.img (stdout) from ramdisk.img (stdin)'
-echo '         exit code 0 does not gurantee succcess'
+echo '         exit code 0 does not gurantee success'
 echo '         does not work correctly if stdin read offset > 0'
 exit 1
